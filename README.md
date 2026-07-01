@@ -32,6 +32,9 @@ docker compose exec app alembic init migrations
 docker compose exec app alembic revision --autogenerate -m "initial"
 docker compose exec app alembic upgrade head
 
+#Открыть порты наружу
+№Security Groups порты 8000(API); 5555(Flower).
+
 №Проверка
 curl http://localhost:8000/health
 #Открыть в браузере
