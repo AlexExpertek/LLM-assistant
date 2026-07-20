@@ -23,7 +23,7 @@ YANDEX_FOLDER_ID
 
 #Запуск
 mkdir -p storage
-bocker compose up --build -d
+docker compose up --build -d
 docker compose logs -f app
 docker compose logs -f celery_worker
 
