@@ -7,7 +7,7 @@ ssh -i C:\\user\....\ user@(ip)
 curl -fsSL https://get.docker.com | sh
 #Добавляем пользователя в группу docker
 sudo usermod -aG docker $USER
-newrp docker
+newgrp docker
 #проверяем
 docker --version
 docker compose version
@@ -30,6 +30,10 @@ mkdir -p storage
 docker compose up --build -d
 docker compose logs -f app
 docker compose logs -f celery_worker
+
+#Запуск-2
+chmod +x scripts/install.sh
+./scripts/install.sh
 
 #Создаем таблицы в БД
 docker compose exec app alembic init migrations
