@@ -1,5 +1,8 @@
 # LLM-assistant
 
+#Подключаемся к VM
+ssh -i C:\\user\....\ user@(ip)
+
 #Устанавливаем Docker (на чистый Ubuntu 22/04)
 curl -fsSL https://get.docker.com | sh
 #Добавляем пользователя в группу docker
@@ -12,6 +15,7 @@ docker compose version
 #Загружаем код на сервер
 git clone https://github.com/AlexExpertek/LLM-assistant.git
 cd tender-platform
+tar -xzf tender-ai-platform.tar.gz
 
 #Заполняем .env
 cp .env.example .env
