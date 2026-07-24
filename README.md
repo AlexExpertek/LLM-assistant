@@ -14,16 +14,32 @@ docker compose version
 
 #Загружаем код на сервер
 git clone https://github.com/AlexExpertek/LLM-assistant.git
+cd LLM-assistant
 cd tender-platform
 tar -xzf tender-ai-platform.tar.gz
 
 #Заполняем .env
 cp .env.example .env
 nano .env
+#Вписать:
 TELEGRAM_BOT_TOKEN
 TELEGRAM_CHAT_ID
 YANDEX_API_KEY
 YANDEX_FOLDER_ID
+
+#Проверка PostgreSQL
+docker copmose ps
+
+#Подклиться к PostgreSQL
+docker copmose exec postgres psql -U tender_user -d tender_db
+
+#Создаем таблицы в БД
+docker compose exec app alembic init migrations
+docker compose exec app alembic revision --autogenerate -m "initial"
+docker compose exec app alembic upgrade head
+
+#Проверяем таблицы
+docker copmose exec postgres psql -U tender_user -d tender_db -c "\dt"
 
 #Запуск
 mkdir -p storage
@@ -35,10 +51,7 @@ docker compose logs -f celery_worker
 chmod +x scripts/install.sh
 ./scripts/install.sh
 
-#Создаем таблицы в БД
-docker compose exec app alembic init migrations
-docker compose exec app alembic revision --autogenerate -m "initial"
-docker compose exec app alembic upgrade head
+
 
 #Открыть порты наружу
 №Security Groups порты 8000(API); 5555(Flower).
