@@ -59,6 +59,13 @@ chmod +x scripts/install.sh
 #Открыть порты наружу
 №Security Groups порты 8000(API); 5555(Flower).
 
+#Открыть порты на ружу
+docker-compose.yml
+  app:
+      - "8000:8000"
+  app:
+      - "5555:5555"
+
 №Проверка
 curl http://localhost:8000/health
 #Открыть в браузере
