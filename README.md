@@ -15,8 +15,8 @@ docker compose version
 #Загружаем код на сервер
 git clone https://github.com/AlexExpertek/LLM-assistant.git
 cd LLM-assistant
-cd tender-platform
 tar -xzf tender-ai-platform.tar.gz
+cd tender-platform
 
 #Заполняем .env
 cp .env.example .env
