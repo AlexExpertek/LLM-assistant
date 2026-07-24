@@ -28,10 +28,10 @@ YANDEX_API_KEY
 YANDEX_FOLDER_ID
 
 #Проверка PostgreSQL
-docker copmose ps
+docker compose ps
 
 #Подклиться к PostgreSQL
-docker copmose exec postgres psql -U tender_user -d tender_db
+docker compose exec postgres psql -U tender_user -d tender_db
 
 #Создаем таблицы в БД
 docker compose exec app alembic init migrations
@@ -39,7 +39,7 @@ docker compose exec app alembic revision --autogenerate -m "initial"
 docker compose exec app alembic upgrade head
 
 #Проверяем таблицы
-docker copmose exec postgres psql -U tender_user -d tender_db -c "\dt"
+docker compose exec postgres psql -U tender_user -d tender_db -c "\dt"
 
 #Запуск
 mkdir -p storage
