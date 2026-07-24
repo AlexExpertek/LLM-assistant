@@ -35,8 +35,8 @@ docker compose exec postgres psql -U tender_user -d tender_db
 
 #Создаем таблицы в БД
 docker compose exec app alembic init migrations
-docker compose exec app alembic revision --autogenerate -m "initial"
 docker compose exec app alembic upgrade head
+docker compose exec app alembic revision --autogenerate -m "initial"
 
 #Проверяем таблицы
 docker compose exec postgres psql -U tender_user -d tender_db -c "\dt"
