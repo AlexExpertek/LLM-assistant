@@ -47,6 +47,9 @@ docker compose up --build -d
 docker compose logs -f app
 docker compose logs -f celery_worker
 
+#Удалить CHANGE_ME
+#Открыть файл .env и уделить CHANGE_ME из комментариев
+
 #Запуск-2
 chmod +x scripts/install.sh
 ./scripts/install.sh
