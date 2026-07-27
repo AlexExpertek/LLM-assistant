@@ -1,0 +1,1117 @@
+metadata:
+  name: tender_rules
+  version: 1.0.0
+  created_at: '2026-07-02'
+  language: ru
+  purpose: Фильтрация, оценка и разметка тендеров по алюминиевому прокату для RAG/MVP тендерного ассистента.
+  source_files:
+  - forms_otchet (1).xlsx
+  - example_accepted 1.xlsx
+  - key_words_al (1).xlsx
+  - product_matrix (1).xlsx
+  - tender_rules.xlsx
+  important_note: Ассистент не принимает финальное коммерческое решение за тендерного специалиста; он заполняет отчет, присваивает
+    score, выявляет риски и рекомендует действие.
+scope:
+  allowed_procurement_laws:
+  - 44-ФЗ
+  - 223-ФЗ
+  - коммерческие закупки
+  allowed_regions:
+  - Российская Федерация
+  - СНГ
+  allowed_customers: все заказчики, которые используют алюминий или алюминиевый прокат
+  allowed_industries: все отрасли
+  okpd2_include_prefixes:
+  - 24.42.22
+  - 24.42.23
+  - 24.42.24
+  - 24.42.25
+  - 24.42.26
+  - 24.42.11
+  nmck_required: false
+  advance_required: false
+  security_can_be_any_value: true
+  procurement_method: любой способ закупки/отбора
+input_processing:
+  supported_file_types:
+  - pdf
+  - doc
+  - docx
+  - xls
+  - xlsx
+  - jpg
+  - jpeg
+  - png
+  - html
+  - zip
+  required_pipeline_steps:
+  - download_or_receive_tender_documents
+  - extract_text_and_tables_from_documents
+  - extract_product_parameters
+  - match_keywords_and_stop_keywords
+  - match_product_matrix
+  - apply_hard_filters
+  - calculate_scoring
+  - fill_forms_otchet_schema
+  - return_decision_and_explanation
+  ocr_required_for_images: true
+  rag_search_collections:
+  - product_matrix
+  - key_words_al
+  - tender_examples
+  - risk_rules
+  - selection_rules
+normalization:
+  case_insensitive: true
+  trim_spaces: true
+  normalize_decimal_separator:
+    from: ','
+    to: .
+  normalize_units:
+    thickness: mm
+    width: mm
+    length: mm
+    quantity: kg
+    delivery_time: days
+  alloy_normalization_rules:
+  - from: 1050А
+    to: 1050A
+    reason: кириллическая А заменяется на латинскую A
+  - from: Ад1
+    to: АД1
+  - from: Ад0
+    to: АД0
+  - from: Амц
+    to: АМц
+  - from: Амг
+    to: АМг
+  product_type_synonyms:
+    лента:
+    - алюминиевая лента
+    - лента алюминиевая
+    - лента из алюминиевого сплава
+    штрипсы:
+    - штрипс
+    - штрипсы алюминиевые
+    - полоса алюминиевая
+    - алюминиевая полоса
+    рулон:
+    - рулон алюминиевый
+    - алюминий в рулоне
+    - рулонный алюминий
+    лист:
+    - лист алюминиевый
+    - алюминиевый лист
+    плита:
+    - плита алюминиевая
+    - алюминиевая плита
+    фольга:
+    - алюминиевая фольга
+    - фольга алюминиевая
+    лента тисненная:
+    - лента тисненая
+    - лента тисненная
+    - рифленая лента
+    - тисненая алюминиевая лента
+search_filters:
+  include_keywords:
+  - алюминий для электротехнической промышленности
+  - электротехнический алюминий
+  - алюминиевая токопроводящая шина
+  - шина для распределительного устройства
+  - шина для шинопровода
+  - алюминиевый проводник
+  - токопроводящий алюминиевый профиль
+  - алюминиевый профиль для трансформатора
+  - алюминиевая лента для трансформатора
+  - алюминиевая фольга для обмотки
+  - алюминий для высоковольтного оборудования
+  - алюминиевые детали электрооборудования
+  - алюминий для солнечных электростанций
+  - профиль для солнечных панелей
+  - алюминиевые конструкции для ФЭМ
+  - алюминий для ЦОД
+  - алюминиевая шина для ЦОД
+  - Кабельная промышленность
+  - алюминий для кабельного производства
+  - алюминиевое сырье для кабельного завода
+  - алюминиевая катанка для кабеля
+  - алюминиевая проволока для кабеля
+  - алюминиевая лента для кабеля
+  - алюминиевая фольга для кабеля
+  - алюминиевая оболочка кабеля
+  - алюминиевый экран кабеля
+  - токопроводящая алюминиевая жила
+  - кабельно-проводниковая продукция из алюминия
+  - алюминиевые заготовки для машиностроения
+  - алюминиевые детали по чертежам
+  - алюминиевый профиль для оборудования
+  - алюминиевые корпусные детали
+  - алюминиевые панели оборудования
+  - алюминий для приборостроения
+  - алюминий для станкостроения
+  - алюминий для транспортного машиностроения
+  - алюминий для робототехники
+  - алюминиевые направляющие
+  - алюминиевые рамы
+  - алюминиевые корпуса
+  - автомобильный алюминиевый лист
+  - алюминий для автокомпонентов
+  - алюминиевый профиль для автомобилей
+  - алюминиевые детали кузова
+  - алюминиевый лист для штамповки
+  - алюминиевый лист для авиации
+  - алюминиевая плита авиационная
+  - алюминиевый профиль авиационный
+  - высокопрочный алюминиевый сплав
+  - алюминиевый прокат специального назначения
+  - алюминиевые полуфабрикаты для авиационной техники
+  - алюминиевые детали для специальной техники
+  - алюминий для государственного оборонного заказа
+  - алюминий для ГОЗ
+  - судовой алюминий
+  - алюминий для судостроения
+  - судостроительный алюминиевый лист
+  - алюминиевые судовые плиты
+  - алюминиевый профиль для судостроения
+  - морской алюминиевый сплав
+  - алюминиевые сплавы 5083
+  - алюминиевые сплавы 1561
+  - алюминиевые конструкции судна
+  - фасадный алюминий
+  - алюминиевый фасадный лист
+  - алюминий для фасадов
+  - алюминий для навесных фасадных систем
+  - кассеты алюминиевые фасадные
+  - фасадные алюминиевые кассеты
+  - алюминиевые панели
+  - цельноалюминиевые панели
+  - алюминиевые облицовочные листы
+  - алюминиевые потолочные панели
+  - алюминиевые потолочные кассеты
+  - алюминиевые ламели
+  - алюминиевые рейки
+  - алюминиевые откосы
+  - алюминиевые нащельники
+  - алюминиевые фасонные элементы
+  - алюминиевые доборные элементы
+  - алюминиевый парапет
+  - алюминиевые архитектурные элементы
+  - перфорированные алюминиевые панели
+  - пищевой алюминий
+  - алюминий для пищевой промышленности
+  - алюминиевый лист для холодильных камер
+  - алюминий для морозильных камер
+  - алюминиевые панели холодильной камеры
+  - алюминий с пищевым лаком
+  - алюминий с покрытием H1
+  - алюминиевый лист с тиснением
+  - алюминий апельсиновая корка
+  - алюминиевые внутренние облицовки
+  - алюминиевые панели для чистых помещений
+  - поставка алюминиевого проката
+  - закупка алюминиевого проката
+  - приобретение алюминиевого проката
+  - поставка изделий из алюминия
+  - закупка алюминиевых изделий
+  - поставка цветного металлопроката
+  - закупка цветных металлов
+  - поставка листового алюминия
+  - поставка алюминиевых профилей
+  - поставка алюминиевых труб
+  - поставка алюминиевых шин
+  - поставка алюминиевой катанки
+  - поставка алюминиевой проволоки
+  - поставка алюминиевых заготовок
+  - изготовление алюминиевых изделий
+  - выполнение работ по изготовлению алюминиевых деталей
+  - оказание услуг по обработке алюминия
+  - выбор поставщика алюминиевого проката
+  - запрос цен на алюминиевый прокат
+  stop_keywords:
+  - сбор алюминиевого лома
+  - прием алюминиевого лома
+  - продажа алюминиевого лома
+  - реализация алюминиевого лома
+  - утилизация отходов алюминия
+  - демонтаж алюминиевых конструкций
+  - бытовая алюминиевая посуда
+  - готовые алюминиевые окна
+  - ремонт алюминиевых окон
+  - установка алюминиевых окон
+  - алюминиевые радиаторы отопления
+  - ремонт радиаторов
+  - государственные регистрационные знаки
+  - изготовление табличек
+  - изготовление вывесок
+  - алюминиевая кухонная фольга
+  keyword_match_logic:
+    include_if_any_keyword_found: true
+    reject_if_stop_keyword_found_and_no_product_matrix_match: true
+    manual_review_if_stop_keyword_found_but_product_matrix_match_exists: true
+product_matrix_rules:
+  source: product_matrix (1).xlsx
+  global_min_batch_kg: 500
+  all_product_types: all enabled products are taken from product_matrix
+  product_types:
+    лента:
+      enabled: true
+      source_rows: 119
+      alloys:
+      - '1050'
+      - 1050А
+      - '1105'
+      - '1561'
+      - '1915'
+      - 1ххх
+      - '2017'
+      - 2017А
+      - '2024'
+      - 2ххх
+      - '3003'
+      - 3ххх
+      - 4ххх
+      - 5005А
+      - '5052'
+      - '5083'
+      - '5182'
+      - '5251'
+      - '5754'
+      - 5ххх
+      - А0
+      - А5
+      - А6
+      - А7
+      - АВ
+      - АД
+      - АД0
+      - АД00
+      - АД1
+      - АМг2
+      - АМг3
+      - АМг5
+      - АМг6
+      - АМг6Б
+      - АМц
+      - АМцС
+      - В95-1
+      - В95-1А
+      - В95А
+      - ВД
+      - Д1
+      - Д12
+      - Д16
+      - Д16А
+      - Д16Б
+      - Д1А
+      thickness_mm_range:
+      - 0.3
+      - 10.5
+      width_mm_range:
+      - 20.0
+      - 2000.0
+      min_batch_kg: 500
+      delivery_days_range:
+      - 10
+      - 20
+      conditions:
+      - М
+      - Н
+      - Н1
+      - Н111
+      - Н116
+      - Н14
+      - Н16
+      - Н18
+      - Н2
+      - Н22
+      - Н24
+      - Н28
+      - Н321
+      - О
+      - Т4
+      - без термической обработки
+      - закаленное и естественно состаренное
+      - мягкое
+      - нагартованное
+      - оттоженное
+      - полунагартованное
+      - тричетвертинагартованное
+      - четвертьнагартованное
+      match_action: allow_if_alloy_and_dimensions_match_else_manual_review
+    лента тисненная:
+      enabled: true
+      source_rows: 3
+      alloys:
+      - А5
+      - А6
+      - АМг2
+      thickness_mm_range:
+      - 0.3
+      - 4.0
+      width_mm_range:
+      - 20.0
+      - 2000.0
+      min_batch_kg: 500
+      delivery_days_range:
+      - 10
+      - 20
+      conditions: []
+      match_action: allow_if_alloy_and_dimensions_match_else_manual_review
+    лист:
+      enabled: true
+      source_rows: 119
+      alloys:
+      - '1050'
+      - 1050А
+      - '1105'
+      - '1561'
+      - '1915'
+      - 1ххх
+      - '2017'
+      - 2017А
+      - '2024'
+      - 2ххх
+      - '3003'
+      - 3ххх
+      - 4ххх
+      - 5005А
+      - '5052'
+      - '5083'
+      - '5182'
+      - '5251'
+      - '5754'
+      - 5ххх
+      - А0
+      - А5
+      - А6
+      - А7
+      - АВ
+      - АД
+      - АД0
+      - АД00
+      - АД1
+      - АМг2
+      - АМг3
+      - АМг5
+      - АМг6
+      - АМг6Б
+      - АМц
+      - АМцС
+      - В95-1
+      - В95-1А
+      - В95А
+      - ВД
+      - Д1
+      - Д12
+      - Д16
+      - Д16А
+      - Д16Б
+      - Д1А
+      thickness_mm_range:
+      - 0.3
+      - 10.5
+      width_mm_range:
+      - 400.0
+      - 2000.0
+      min_batch_kg: 500
+      delivery_days_range:
+      - 10
+      - 20
+      conditions:
+      - М
+      - Н
+      - Н1
+      - Н111
+      - Н116
+      - Н14
+      - Н16
+      - Н18
+      - Н2
+      - Н22
+      - Н24
+      - Н28
+      - Н321
+      - О
+      - Т4
+      - без термической обработки
+      - закаленное и естественно состаренное
+      - мягкое
+      - нагартованное
+      - оттоженное
+      - полунагартованное
+      - тричетвертинагартованное
+      - четвертьнагартованное
+      match_action: allow_if_alloy_and_dimensions_match_else_manual_review
+    плита:
+      enabled: true
+      source_rows: 119
+      alloys:
+      - '1050'
+      - 1050А
+      - '1105'
+      - '1561'
+      - '1915'
+      - 1ххх
+      - '2017'
+      - 2017А
+      - '2024'
+      - 2ххх
+      - '3003'
+      - 3ххх
+      - 4ххх
+      - 5005А
+      - '5052'
+      - '5083'
+      - '5182'
+      - '5251'
+      - '5754'
+      - 5ххх
+      - А0
+      - А5
+      - А6
+      - А7
+      - АВ
+      - АД
+      - АД0
+      - АД00
+      - АД1
+      - АМг2
+      - АМг3
+      - АМг5
+      - АМг6
+      - АМг6Б
+      - АМц
+      - АМцС
+      - В95-1
+      - В95-1А
+      - В95А
+      - ВД
+      - Д1
+      - Д12
+      - Д16
+      - Д16А
+      - Д16Б
+      - Д1А
+      thickness_mm_range:
+      - 10.6
+      - 200.0
+      width_mm_range:
+      - 400.0
+      - 2000.0
+      min_batch_kg: 500
+      delivery_days_range:
+      - 10
+      - 20
+      conditions:
+      - М
+      - Н
+      - Н1
+      - Н111
+      - Н116
+      - Н14
+      - Н16
+      - Н18
+      - Н2
+      - Н22
+      - Н24
+      - Н28
+      - Н321
+      - О
+      - Т4
+      - без термической обработки
+      - закаленное и естественно состаренное
+      - мягкое
+      - нагартованное
+      - оттоженное
+      - полунагартованное
+      - тричетвертинагартованное
+      - четвертьнагартованное
+      match_action: allow_if_alloy_and_dimensions_match_else_manual_review
+    рулон:
+      enabled: true
+      source_rows: 119
+      alloys:
+      - '1050'
+      - 1050А
+      - '1105'
+      - '1561'
+      - '1915'
+      - 1ххх
+      - '2017'
+      - 2017А
+      - '2024'
+      - 2ххх
+      - '3003'
+      - 3ххх
+      - 4ххх
+      - 5005А
+      - '5052'
+      - '5083'
+      - '5182'
+      - '5251'
+      - '5754'
+      - 5ххх
+      - А0
+      - А5
+      - А6
+      - А7
+      - АВ
+      - АД
+      - АД0
+      - АД00
+      - АД1
+      - АМг2
+      - АМг3
+      - АМг5
+      - АМг6
+      - АМг6Б
+      - АМц
+      - АМцС
+      - Амц
+      - В95-1
+      - В95-1А
+      - В95А
+      - ВД
+      - Д1
+      - Д12
+      - Д16
+      - Д16А
+      - Д16Б
+      - Д1А
+      thickness_mm_range:
+      - 0.3
+      - 10.5
+      width_mm_range:
+      - 20.0
+      - 2000.0
+      min_batch_kg: 500
+      delivery_days_range:
+      - 10
+      - 20
+      conditions:
+      - М
+      - Н
+      - Н1
+      - Н111
+      - Н116
+      - Н14
+      - Н16
+      - Н18
+      - Н2
+      - Н22
+      - Н24
+      - Н28
+      - Н321
+      - О
+      - Т4
+      - без термической обработки
+      - закаленное и естественно состаренное
+      - мягкое
+      - нагартованное
+      - оттоженное
+      - полунагартованное
+      - тричетвертинагартованное
+      - четвертьнагартованное
+      match_action: allow_if_alloy_and_dimensions_match_else_manual_review
+    фольга:
+      enabled: true
+      source_rows: 20
+      alloys:
+      - '1050'
+      - 1050А
+      - '1100'
+      - '1145'
+      - '1200'
+      - '3003'
+      - '8006'
+      - '8011'
+      - 8011A
+      - '8079'
+      - '8111'
+      - А5
+      - А6
+      - АД
+      - АД0
+      - АД1
+      - АЖ0,6
+      - АЖ0,8
+      - АЖ1
+      - АО
+      thickness_mm_range:
+      - 0.006
+      - 0.29
+      width_mm_range:
+      - 30.0
+      - 1500.0
+      min_batch_kg: 500
+      delivery_days_range:
+      - 10
+      - 20
+      conditions: []
+      match_action: allow_if_alloy_and_dimensions_match_else_manual_review
+    штрипсы:
+      enabled: true
+      source_rows: 119
+      alloys:
+      - '1050'
+      - 1050А
+      - '1105'
+      - '1561'
+      - '1915'
+      - 1ххх
+      - '2017'
+      - 2017А
+      - '2024'
+      - 2ххх
+      - '3003'
+      - 3ххх
+      - 4ххх
+      - 5005А
+      - '5052'
+      - '5083'
+      - '5182'
+      - '5251'
+      - '5754'
+      - 5ххх
+      - А0
+      - А5
+      - А6
+      - А7
+      - АВ
+      - АД
+      - АД0
+      - АД00
+      - АД1
+      - АМг2
+      - АМг3
+      - АМг5
+      - АМг6
+      - АМг6Б
+      - АМц
+      - АМцС
+      - В95-1
+      - В95-1А
+      - В95А
+      - ВД
+      - Д1
+      - Д12
+      - Д16
+      - Д16А
+      - Д16Б
+      - Д1А
+      thickness_mm_range:
+      - 0.3
+      - 10.5
+      width_mm_range:
+      - 20.0
+      - 2000.0
+      min_batch_kg: 500
+      delivery_days_range:
+      - 10
+      - 20
+      conditions:
+      - М
+      - Н
+      - Н1
+      - Н111
+      - Н116
+      - Н14
+      - Н16
+      - Н18
+      - Н2
+      - Н22
+      - Н24
+      - Н28
+      - Н321
+      - О
+      - Т4
+      - без термической обработки
+      - закаленное и естественно состаренное
+      - мягкое
+      - нагартованное
+      - оттоженное
+      - полунагартованное
+      - тричетвертинагартованное
+      - четвертьнагартованное
+      match_action: allow_if_alloy_and_dimensions_match_else_manual_review
+  matching_logic:
+    strong_match:
+    - product_type_found
+    - alloy_found_in_product_matrix
+    - dimensions_inside_range
+    - quantity_kg_greater_or_equal_min_batch
+    partial_match:
+    - product_type_found
+    - missing_alloy_or_dimensions
+    - quantity_unknown_or_below_min_batch
+    no_match:
+    - product_type_not_found
+    - alloy_not_found_and_no_close_analogue
+    - dimensions_outside_range
+financial_rules:
+  min_contract_value_rub_for_consideration: 500000
+  preferred_contract_value_rub: 1000000
+  nmck_missing_action: manual_review_not_reject
+  advance_payment: any
+  payment_terms_logic:
+  - condition: аванс есть
+    score_effect: positive
+  - condition: оплата 45-75 календарных дней после подписания накладных
+    score_effect: allowed_with_medium_risk
+    source_example: Роснефть accepted case
+  - condition: постоплата более 90 календарных дней
+    score_effect: high_risk_manual_review
+  - condition: условия оплаты отсутствуют
+    score_effect: manual_review
+  security_rules:
+    application_security: any_value_allowed_but_extract_to_report
+    contract_security: any_value_allowed_but_extract_to_report
+    no_security: positive_signal
+delivery_rules:
+  standard_product_matrix_delivery_days:
+  - 10
+  - 20
+  accepted_example_delivery_patterns:
+  - 20 календарных дней с даты подачи заявки
+  - 30/60/90 дней партиями
+  - после 10 дней после подписания
+  manual_review_if_delivery_missing: true
+  manual_review_if_delivery_less_than_days: 10
+  positive_if_delivery_between_days:
+  - 10
+  - 90
+  delivery_by_supplier_allowed: true
+  partial_delivery_allowed_if_documentation_allows: true
+documentation_rules:
+  extract_to_report_schema: &id001
+  - tender_id
+  - name_product
+  - product_type
+  - alloy
+  - thickness
+  - width
+  - length
+  - quantity
+  - batch
+  - gost
+  - ost
+  - tu
+  - coating
+  - coating_type
+  - RAL
+  - metalworking
+  - drawings
+  - place_of_delivery
+  - delivery_time
+  - delivery_schedule
+  - payment_terms
+  - partial_delivery
+  - application_deadline
+  - customer_name
+  - customer_inn
+  - nmck
+  - missing_data
+  - reason
+  - link_to_tender
+  required_for_high_confidence:
+  - tender_subject
+  - product_type
+  - alloy
+  - thickness
+  - width
+  - quantity
+  - delivery_time
+  - place_of_delivery
+  manual_review_if_missing:
+  - alloy
+  - thickness
+  - width
+  - quantity
+  - payment_terms
+  - delivery_time
+  - place_of_delivery
+  - gost_or_tu
+  critical_if_missing:
+  - tender_subject
+  - technical_specification_or_specification
+  drawings:
+    if_present: manual_review
+    reason: нужно согласование производства/технолога
+  gost_tu_ost:
+    if_present: extract_and_compare
+    if_missing: manual_review_not_reject
+hard_filters:
+  auto_reject:
+  - rule_id: REJ_001
+    condition: предмет закупки относится к сбору, приему, реализации, продаже или утилизации алюминиевого лома
+    action: reject
+    reason: лом и металлолом не являются целевым направлением поставки алюминиевого проката
+  - rule_id: REJ_002
+    condition: предмет закупки не связан с алюминием или алюминиевым прокатом
+    action: reject
+    reason: нет совпадения с продуктовой матрицей и ключевыми словами
+  - rule_id: REJ_003
+    condition: требуется только монтаж, демонтаж, ремонт, установка окон, радиаторов, вывесок или табличек без поставки алюминиевого
+      проката
+    action: reject
+    reason: закупка относится к услугам/готовым изделиям вне продуктовой матрицы
+  - rule_id: REJ_004
+    condition: невозможно определить предмет закупки даже после анализа документов
+    action: reject
+    reason: нет данных для расчета и сопоставления
+  - rule_id: REJ_005
+    condition: размеры продукции явно выходят за диапазоны product_matrix и нет допуска эквивалента/аналога
+    action: reject_or_manual_review
+    reason: техническое несоответствие продуктовой матрице
+  - rule_id: REJ_006
+    condition: количество меньше 500 кг и нет стратегической причины рассматривать тендер
+    action: reject_or_low_priority
+    reason: ниже минимального коммерческого объема
+  manual_review:
+  - rule_id: MR_001
+    condition: не указан сплав
+    reason: нельзя уверенно сопоставить с product_matrix
+  - rule_id: MR_002
+    condition: не указаны толщина/ширина/длина/количество
+    reason: не хватает данных для расчета
+  - rule_id: MR_003
+    condition: есть чертежи или требование изготовления по чертежам
+    reason: нужно согласование производства
+  - rule_id: MR_004
+    condition: НМЦК отсутствует
+    reason: не отклонять; нужно коммерческое решение специалиста
+  - rule_id: MR_005
+    condition: условия оплаты отсутствуют или нестандартные
+    reason: нужна проверка договора
+  - rule_id: MR_006
+    condition: ГОЗ, режимный объект или специальные требования приемки
+    reason: нужна юридическая/тендерная проверка
+  - rule_id: MR_007
+    condition: сплав найден только как импортный или неоднозначный аналог
+    reason: нужно подтверждение аналога
+  - rule_id: MR_008
+    condition: несколько номенклатур в одном тендере
+    reason: проверять каждую позицию отдельно
+  positive_signals:
+  - condition: продукт, сплав и размеры входят в product_matrix
+  - condition: объем от 500 кг
+  - condition: сумма договора от 1 млн руб
+  - condition: есть аванс
+  - condition: нет обеспечения заявки и договора
+  - condition: 'срок поставки реалистичный: от 10 до 90 дней'
+  - condition: закупка напрямую за лучшую цену
+  - condition: крупный промышленный заказчик, использующий алюминий
+scoring:
+  max_score: 100
+  weights:
+    keyword_relevance: 10
+    product_type_match: 15
+    alloy_match: 15
+    dimension_match: 15
+    quantity_and_batch_match: 10
+    documentation_completeness: 10
+    delivery_feasibility: 10
+    financial_attractiveness: 10
+    risk_and_stop_factors: 5
+  details:
+    keyword_relevance:
+    - points: 10
+      condition: найдено точное ключевое слово и нет stop_keyword
+    - points: 5
+      condition: найдено косвенное ключевое слово
+    - points: 0
+      condition: ключевые слова не найдены
+    product_type_match:
+    - points: 15
+      condition: тип продукции найден в product_matrix
+    - points: 8
+      condition: тип продукции похож на product_matrix, нужен мэппинг
+    - points: 0
+      condition: тип продукции не найден
+    alloy_match:
+    - points: 15
+      condition: сплав найден в product_matrix для указанного product_type
+    - points: 8
+      condition: сплав указан, но требует нормализации или аналога
+    - points: 4
+      condition: сплав не указан, но продукт подходит
+    - points: 0
+      condition: сплав явно неподходящий
+    dimension_match:
+    - points: 15
+      condition: толщина и ширина в диапазоне product_matrix
+    - points: 8
+      condition: часть размеров отсутствует
+    - points: 4
+      condition: размеры на границе диапазона
+    - points: 0
+      condition: размеры вне диапазона
+    quantity_and_batch_match:
+    - points: 10
+      condition: количество >= 500 кг
+    - points: 5
+      condition: количество не указано
+    - points: 2
+      condition: количество < 500 кг, но заказчик стратегический
+    - points: 0
+      condition: количество < 500 кг без стратегической причины
+    documentation_completeness:
+    - points: 10
+      condition: есть ТЗ/спецификация/договор/сроки/место поставки
+    - points: 5
+      condition: есть ТЗ, но не хватает части данных
+    - points: 0
+      condition: нет ТЗ или невозможно определить предмет
+    delivery_feasibility:
+    - points: 10
+      condition: срок поставки 10-90 дней или поставка партиями
+    - points: 6
+      condition: срок поставки не указан
+    - points: 4
+      condition: срок поставки менее 10 дней
+    - points: 0
+      condition: срок явно невозможен
+    financial_attractiveness:
+    - points: 10
+      condition: сумма >= 1 млн руб или хороший объем
+    - points: 7
+      condition: сумма 500 тыс - 1 млн руб
+    - points: 5
+      condition: НМЦК отсутствует, но продукт и объем подходят
+    - points: 3
+      condition: длинная постоплата 45-90 дней
+    - points: 0
+      condition: экономически нецелесообразно
+    risk_and_stop_factors:
+    - points: 5
+      condition: нет стоп-факторов
+    - points: 3
+      condition: есть средние риски, нужна ручная проверка
+    - points: 0
+      condition: есть критический стоп-фактор
+decision_thresholds:
+  participate_candidate:
+    min_score: 75
+    max_score: 100
+    action: recommend_participation_or_commercial_calculation
+    final_decision_owner: tender_specialist
+  manual_review:
+    min_score: 50
+    max_score: 74
+    action: send_to_tender_specialist
+    final_decision_owner: tender_specialist
+  reject_or_low_priority:
+    min_score: 0
+    max_score: 49
+    action: reject_or_mark_low_priority
+    final_decision_owner: tender_specialist
+  force_manual_review_conditions:
+  - missing_payment_terms
+  - missing_alloy
+  - drawings_present
+  - nmck_missing
+  - multiple_positions
+  - GOZ_or_special_acceptance
+  force_reject_conditions:
+  - stop_keyword_lom_without_product_match
+  - not_aluminum_related
+  - service_only_without_product_supply
+output:
+  forms_otchet_fields: *id001
+  assistant_response_blocks:
+  - краткое резюме тендера
+  - извлеченные параметры продукции
+  - совпадение с product_matrix
+  - ключевые слова и стоп-слова
+  - финансовые условия
+  - логистика и сроки
+  - недостающие данные
+  - риски
+  - score
+  - рекомендация
+  - что проверить специалисту
+  decision_values:
+  - participate_candidate
+  - manual_review
+  - reject_or_low_priority
+  risk_values:
+  - low
+  - medium
+  - high
+  - critical
+examples_from_expert_markup:
+- case_id: T001
+  customer_name: ООО «НПО «Центротех»
+  tender_subject: Закупка листов АД1 М 4х1250х2500
+  product_type: лист
+  alloy: АД1
+  condition: М
+  thickness_mm: 4
+  width_mm: 1250
+  quantity_kg: 14500
+  expert_decision: 'Подача 1-х части заявки до 08.07.2026
+
+    Подача ценовых предложений и проведение закупочной сессии — после  рассмотрения 1-х частей заявок.
+
+    Итоги закупки — не позднее 31.07.2026
+
+    Подаваться будем'
+  learned_rule: участвуем. Такой формат наиболее выгоден
+- case_id: T002
+  customer_name: 'ПАО «НК «Роснефть» '
+  tender_subject: Лента алюминиевая АД1Н 20мм 0,8мм
+  product_type: лента
+  alloy: АД1
+  condition: Н
+  thickness_mm: 0.8
+  width_mm: 20
+  quantity_kg: 533
+  expert_decision: 'Условия оплаты: оплата не ранее 45 и не позднее 75 календарных дней с даты подписания накладных на основании
+    выставленных счетов, счетов-факту'
+  learned_rule: Данный тендор многокомпонентный. В одной номенклатуре сразу две позиции, которые можем поставить. По условия
+    поставки более 500кг и оплате данный тендер подходит
+- case_id: T002_extra_position
+  customer_name: null
+  tender_subject: Лист алюминиевый АД1Н-0.50х800х2000, ГОСТ 21631-76
+  product_type: лист
+  alloy: АД1
+  condition: Н
+  thickness_mm: 0.5
+  width_mm: 800
+  quantity_kg: 5500
+  expert_decision: null
+  learned_rule: accepted_example_from_expert_markup
+- case_id: T003
+  customer_name: АКЦИОНЕРНОЕ ОБЩЕСТВО "НАУЧНО-ПРОИЗВОДСТВЕННОЕ ОБЪЕДИНЕНИЕ "СПЛАВ" ИМЕНИ А.Н. ГАНИЧЕВА"
+  tender_subject: Лист АД1М 1,2х1500х3000 ГОСТ 21631-2023
+  product_type: лист
+  alloy: АД1
+  condition: М
+  thickness_mm: 1.2
+  width_mm: 1500
+  quantity_kg: 12600
+  expert_decision: 'Условия оплаты:-аванс 50% в течение 10 (десяти) рабочих дней после подписания договора;
+
+    -окончательный расчет 50% от поставленной партии продукции производится в течение 60 (шестидесяти) рабочих дней после
+    приемки ОТК.'
+  learned_rule: участвуем. Хороший объем. Наш продукт
+- case_id: T004
+  customer_name: АО «103 Арсенал»
+  tender_subject: Плита АМг6 70х1200х3000 ГОСТ 17232-2023
+  product_type: плита
+  alloy: АМг6
+  condition: '-'
+  thickness_mm: 70
+  width_mm: 1200
+  quantity_kg: 4800
+  expert_decision: Участие принимаем
+  learned_rule: Участие принимаем
+implementation_notes_for_developer:
+- Product_matrix должна использоваться как структурированная таблица/SQL, а не только как RAG-текст.
+- Key_words_al используется для первичного поиска и расширения запроса.
+- Stop_keywords применяются до scoring, но при наличии сильного product_matrix match переводят тендер в manual_review, а не
+  всегда в reject.
+- Каждую номенклатурную позицию внутри тендера нужно анализировать отдельно.
+- Финальный статус участвовать/не участвовать подтверждает тендерный специалист.
