@@ -71,3 +71,10 @@ curl http://localhost:8000/health
 #Открыть в браузере
 http://(IP):8000/docs
 http://(IP):5555
+
+#Отключение автоматического сканирования тендеров
+docker compose stop celery_beat
+
+#Включение автоматического сканирования тендеров
+docker compose start celery_beat
+
