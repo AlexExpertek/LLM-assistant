@@ -1,0 +1,54 @@
+"""add tender ingestion dedup registry
+
+Revision ID: {revision}
+Revises: {down_revision}
+"""
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+revision = "{revision}"
+down_revision = {down_revision_repr}
+branch_labels = None
+depends_on = None
+
+
+def upgrade() -> None:
+    op.create_table(
+        "tender_ingestion_registry",
+        sa.Column("id", sa.BigInteger(), primary_key=True, autoincrement=True),
+        sa.Column("source", sa.String(100), nullable=False),
+        sa.Column("external_id", sa.String(255), nullable=False),
+        sa.Column("identity_hash", sa.String(64), nullable=False),
+        sa.Column("content_hash", sa.String(64), nullable=False),
+        sa.Column("revision", sa.Integer(), nullable=False, server_default="1"),
+        sa.Column("source_url", sa.Text(), nullable=True),
+        sa.Column("title", sa.Text(), nullable=True),
+        sa.Column("customer_name", sa.Text(), nullable=True),
+        sa.Column("raw_payload", postgresql.JSONB(), nullable=False),
+        sa.Column("processing_status", sa.String(30), nullable=False, server_default="pending"),
+        sa.Column("last_event", sa.String(30), nullable=False, server_default="new"),
+        sa.Column("claim_token", sa.String(36), nullable=True),
+        sa.Column("downstream_task_id", sa.String(255), nullable=True),
+        sa.Column("locked_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("queued_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("completed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("failed_at", sa.DateTime(timezone=True), nullable=True),
+        sa.Column("first_seen_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("last_seen_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("last_changed_at", sa.DateTime(timezone=True), nullable=False, server_default=sa.text("now()")),
+        sa.Column("last_error", sa.Text(), nullable=True),
+        sa.UniqueConstraint("source", "external_id", name="uq_tender_ingestion_source_external"),
+        sa.UniqueConstraint("identity_hash", name="uq_tender_ingestion_identity_hash"),
+    )
+    op.create_index("ix_tender_ingestion_content_hash", "tender_ingestion_registry", ["content_hash"])
+    op.create_index("ix_tender_ingestion_status", "tender_ingestion_registry", ["processing_status"])
+    op.create_index("ix_tender_ingestion_last_seen", "tender_ingestion_registry", ["last_seen_at"])
+
+
+def downgrade() -> None:
+    op.drop_index("ix_tender_ingestion_last_seen", table_name="tender_ingestion_registry")
+    op.drop_index("ix_tender_ingestion_status", table_name="tender_ingestion_registry")
+    op.drop_index("ix_tender_ingestion_content_hash", table_name="tender_ingestion_registry")
+    op.drop_table("tender_ingestion_registry")

@@ -1,80 +1,98 @@
-# LLM-assistant
+# Установка дедупликации тендеров
 
-#Подключаемся к VM
-ssh -i C:\\user\....\ user@(ip)
+Комплект рассчитан на текущий проект `~/LLM-assistant/tender-ai-platform`.
 
-#Устанавливаем Docker (на чистый Ubuntu 22/04)
-curl -fsSL https://get.docker.com | sh
-#Добавляем пользователя в группу docker
-sudo usermod -aG docker $USER
-newgrp docker
-#проверяем
-docker --version
-docker compose version
+## Установка
 
-#Загружаем код на сервер
-git clone https://github.com/AlexExpertek/LLM-assistant.git
-cd LLM-assistant
-tar -xzf tender-ai-platform.tar.gz
-cd tender-platform
+Скопируйте каталог `dedup_files` и файл `install_tender_dedup.sh` в корень проекта:
 
-#Заполняем .env
-cp .env.example .env
-nano .env
-#Вписать:
-TELEGRAM_BOT_TOKEN
-TELEGRAM_CHAT_ID
-YANDEX_API_KEY
-YANDEX_FOLDER_ID
+```bash
+cd ~/LLM-assistant/tender-ai-platform
+chmod +x install_tender_dedup.sh
+./install_tender_dedup.sh
+```
 
-#Проверка PostgreSQL
-docker compose ps
+Скрипт:
 
-#Подклиться к PostgreSQL
-docker compose exec postgres psql -U tender_user -d tender_db
+1. остановит `celery_beat`;
+2. создаст backup файлов и PostgreSQL;
+3. создаст отдельный реестр `tender_ingestion_registry`;
+4. заменит TODO-блок в `tasks_parsing.py`;
+5. применит Alembic-миграцию;
+6. пересоберёт сервисы.
 
-#Создаем таблицы в БД
-docker compose exec app alembic init migrations
-docker compose exec app alembic upgrade head
-docker compose exec app alembic revision --autogenerate -m "initial"
+## Тест двух одинаковых тендеров
 
-#Проверяем таблицы
-docker compose exec postgres psql -U tender_user -d tender_db -c "\dt"
+```bash
+docker compose exec -T app python - <<'PY'
+from app.workers.tasks_parsing import process_new_tender
 
-#Запуск
-mkdir -p storage
-docker compose up --build -d
-docker compose logs -f app
-docker compose logs -f celery_worker
+tender = {
+    "source": "manual_test",
+    "external_id": "TEST-DEDUP-001",
+    "title": "Тестовый тендер",
+    "customer_name": "Тестовый заказчик",
+    "customer_inn": "0000000000",
+    "law_type": "manual",
+    "amount": 1000000,
+    "currency": "RUB",
+    "region": "Москва",
+    "submission_deadline": "2026-08-15T12:00:00+03:00",
+    "source_url": "https://example.org/tenders/TEST-DEDUP-001",
+    "document_urls": [],
+}
 
-#Удалить CHANGE_ME
-#Открыть файл .env и уделить CHANGE_ME из комментариев
+print(process_new_tender.delay(tender).id)
+print(process_new_tender.delay(tender).id)
+PY
+```
 
-#Запуск-2
-chmod +x scripts/install.sh
-./scripts/install.sh
+Проверка:
 
+```bash
+sleep 5
+docker compose logs --since=5m celery_worker | grep -E "tender_deduplication_checked|TEST-DEDUP-001|skipped"
+```
 
+Ожидается:
 
-#Открыть порты наружу
-№Security Groups порты 8000(API); 5555(Flower).
+```text
+первый вызов: claimed=true, action=new
+второй вызов: claimed=false, action=unchanged
+```
 
-#Открыть порты на ружу
-docker-compose.yml
-  app:
-      - "8000:8000"
-  app:
-      - "5555:5555"
+Проверка БД:
 
-№Проверка
-curl http://localhost:8000/health
-#Открыть в браузере
-http://(IP):8000/docs
-http://(IP):5555
+```bash
+docker compose exec -T postgres psql -U tender_user -d tender_db -x -c "
+SELECT source, external_id, revision, processing_status,
+       last_event, first_seen_at, last_seen_at
+FROM tender_ingestion_registry
+WHERE source='manual_test'
+AND external_id='test-dedup-001';
+"
+```
 
-#Отключение автоматического сканирования тендеров
-docker compose stop celery_beat
+Должна существовать одна строка.
 
-#Включение автоматического сканирования тендеров
-docker compose start celery_beat
+## Проверка обновления
 
+Повторите тест, изменив `amount` или `submission_deadline`. Тогда:
+
+```text
+revision = 2
+last_event = updated
+```
+
+## Откат
+
+```bash
+docker compose stop celery_beat celery_worker
+docker compose run --rm app alembic downgrade -1
+
+LATEST="$(find backups -maxdepth 1 -type d -name 'dedup_*' | sort | tail -1)"
+cp "$LATEST/tasks_parsing.py" app/workers/tasks_parsing.py
+rm -f app/services/tender_dedup.py
+
+docker compose up -d --build --force-recreate   app celery_worker celery_beat flower
+```
