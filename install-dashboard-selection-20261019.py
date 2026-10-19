@@ -14,6 +14,24 @@ from pathlib import Path
 def run(args, **kwargs):
     subprocess.run(args, check=True, **kwargs)
 
+HTML_EDITS = [("    can_apply: 'Можем участвовать',\n    manual_review: 'На проверку',\n    needs_clarification: 'Нужно уточнение',\n", "    can_apply: 'Можем участвовать',\n    manual_review: 'Участие требует уточнения',\n    needs_clarification: 'Нужно уточнение',\n"), ("    if (!Array.isArray(main.tenders) || !Array.isArray(review.tenders)) throw new Error('Data');\n    allTenders = main.tenders.filter(t => !['manual_review','needs_clarification'].includes(t.status));\n    const mainKeys = new Set(allTenders.map(t => t.source + ':' + (t.external_id || t.id)));\n", "    if (!Array.isArray(main.tenders) || !Array.isArray(review.tenders)) throw new Error('Data');\n    allTenders = main.tenders;\n    const mainKeys = new Set(allTenders.map(t => t.source + ':' + (t.external_id || t.id)));\n"), ("\n    let weightBadge = '';\n", "\n    if (t.weight_status === 'mass_unknown_pieces_ok') weightText = 'Масса не указана';\n    let weightBadge = '';\n"), ("\n    if (t.weight_status === 'below_minimum') {\n     weightBadge =\n", '\n    if (t.weight_status === \'mass_unknown_pieces_ok\') {\n     weightBadge = \'<span class="multi-badge">≥ 200 шт. в одной позиции</span>\';\n    } else if (t.weight_status === \'below_minimum\') {\n     weightBadge =\n'), ('            ${positionBadge} <span class="multi-badge">${sanitize(priorityLabel)}</span>\n         </div>\n', '            ${positionBadge} <span class="multi-badge">${sanitize(priorityLabel)}</span>\n            <div>${sanitize(t.participation_description || \'\')}</div>\n         </div>\n'), ("t.weight_status === 'ok'\n                 ? '✅ От 500 кг'", "t.weight_status === 'mass_unknown_pieces_ok'\n                 ? '✅ От 200 шт.; масса не указана'\n                 : t.weight_status === 'ok'\n                 ? '✅ От 500 кг'")]
+HTML_HASHES = {'fbb5d8559dde6c33f1e640535916c1c12219e0c5c13070e79f5ba70469568a96', '765f141972721cda1f2b42e3549c1ac7bc34a046065f6c133b0bdee0c7e37b33'}
+
+def patch_html(current):
+    text=current.decode('utf-8')
+    if '<!-- dashboard-selection-v2 -->' in text:
+        for before,after in HTML_EDITS:
+            if text.count(after)!=1:
+                raise SystemExit('HTML_PATCH_STATE_MISMATCH; изменения не внесены')
+        return text
+    if hashlib.sha256(current).hexdigest() not in HTML_HASHES:
+        raise SystemExit('VERSION_MISMATCH: app/static/index.html; изменения не внесены')
+    for before,after in HTML_EDITS:
+        if text.count(before)!=1:
+            raise SystemExit('HTML_ANCHOR_MISMATCH; изменения не внесены')
+        text=text.replace(before,after,1)
+    return text+'\n<!-- dashboard-selection-v2 -->\n'
+
 def main():
     parser=argparse.ArgumentParser(description='Dashboard selection / participation separation. No DB or queue writes.')
     parser.add_argument('--check-only', action='store_true')
@@ -25,6 +43,10 @@ def main():
     for rel, expected, content in FILES:
         path=root/rel
         current=path.read_bytes()
+        if rel == 'app/static/index.html':
+            content=patch_html(current)
+            if current!=content.encode(): pending.append((rel,content))
+            continue
         if current==content.encode(): continue
         if hashlib.sha256(current).hexdigest()!=expected:
             raise SystemExit('VERSION_MISMATCH: '+rel+'; изменения не внесены')
