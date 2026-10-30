@@ -94,6 +94,11 @@ def check_files(root):
   p=root/rel
   if p.is_symlink():raise SystemExit('SYMLINK_NOT_SUPPORTED: '+rel)
   current=p.read_bytes() if p.is_file() else None
+  if rel=='app/sources/metal_it/documents.py' and current is not None:
+   nodes=[n for n in ast.parse(current.decode('utf8')).body if isinstance(n,ast.FunctionDef) and n.name=='references']
+   if len(nodes)==1 and ast.dump(nodes[0],include_attributes=False)==ast.dump(ast.parse(METAL_REFERENCES_NEW).body[0],include_attributes=False):
+    metal_document_changes(root)
+    continue
   if rel in TEXT_PATCHES:
    if current is None:raise SystemExit('FILE_MISSING: '+rel+'; no files changed')
    text=current.decode('utf8')
@@ -370,6 +375,7 @@ def document_format_changes(root, earlier=()):
         else:nodes=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name==name]
         if len(nodes)!=1:raise SystemExit('DOCUMENT_LOADER_NODE_MISSING: '+name)
         node=nodes[0];actual=ast.dump(node,include_attributes=False)
+        if name=='references' and actual==ast.dump(ast.parse(METAL_REFERENCES_NEW).body[0],include_attributes=False):continue
         if actual==ast.dump(ast.parse(desired).body[0],include_attributes=False):continue
         if actual!=ast.dump(ast.parse(original).body[0],include_attributes=False):raise SystemExit('DOCUMENT_LOADER_VERSION_MISMATCH: '+name+'; no files changed')
         changes.append((node.lineno,node.end_lineno,desired+'\n'))
@@ -466,7 +472,7 @@ def lukoil_monitor_changes(root):
     return pending
 
 
-def install_lukoil_monitor(root,include_norn=False,include_brusnika=False):
+def install_lukoil_monitor(root,include_norn=False,include_brusnika=False,include_metal=False):
     running=set(run(['docker','compose','ps','--services','--status','running'],capture_output=True,text=True,timeout=20).stdout.split())
     observed_running=set(running)
     if 'app' not in running:raise SystemExit('APP_NOT_RUNNING: no files changed or services started')
@@ -475,10 +481,10 @@ def install_lukoil_monitor(root,include_norn=False,include_brusnika=False):
         saved=json.loads(journal.read_text())
         if saved.get('version')!=1 or not isinstance(saved.get('running'),list) or not set(saved['running'])<={'app','celery_worker','celery_discovery','celery_beat'}:raise SystemExit('CORPORATE_SERVICE_STATE_INVALID: no files changed')
         running.update(saved['running'])
-    pending=brusnika_monitor_changes(root) if include_brusnika else (corporate_monitor_changes(root) if include_norn else lukoil_monitor_changes(root))
-    tests=BRUSNIKA_TESTS if include_brusnika else LUKOIL_TESTS
-    verification=BRUSNIKA_VERIFY if include_brusnika else (CORPORATE_VERIFY if include_norn else LUKOIL_VERIFY)
-    backup=root/'backups'/(('brusnika-monitor-' if include_brusnika else 'lukoil-monitor-')+datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%f'))
+    pending=metal_document_changes(root) if include_metal else (brusnika_monitor_changes(root) if include_brusnika else (corporate_monitor_changes(root) if include_norn else lukoil_monitor_changes(root)))
+    tests=METAL_LIMIT_TESTS if include_metal else (BRUSNIKA_TESTS if include_brusnika else LUKOIL_TESTS)
+    verification=METAL_LIMIT_VERIFY if include_metal else (BRUSNIKA_VERIFY if include_brusnika else (CORPORATE_VERIFY if include_norn else LUKOIL_VERIFY))
+    backup=root/'backups'/(('metal-document-limit-' if include_metal else ('brusnika-monitor-' if include_brusnika else 'lukoil-monitor-'))+datetime.now(timezone.utc).strftime('%Y%m%d-%H%M%S-%f'))
     try:
         for rel,content,old in pending:
             if old is not None:atomic(backup/rel,old)
@@ -512,6 +518,9 @@ def install_lukoil_monitor(root,include_norn=False,include_brusnika=False):
     run(['docker','compose','exec','-T','app','python','-'],input=verification,text=True,timeout=45)
     if 'celery_beat' in running:run(['docker','compose','up','-d','--no-deps','celery_beat'])
     journal.unlink(missing_ok=True)
+    if include_metal:
+        print('METAL_DOCUMENT_LIMIT_INSTALLED: up to 20 attachments; no truncation, immediate collection, DB edits or task submissions. Existing running services restored.',flush=True)
+        return
     if include_brusnika:
         print('BRUSNIKA_MONITOR_INSTALLED: public search at 37 */4; candidates/report only; no immediate collection, DB edits or OCR/LLM tasks.',flush=True)
         return
@@ -643,6 +652,70 @@ def self_test_remaining():
     print('REMAINING_INSTALL_TESTS_OK: idempotent targeted changes, unknown-version guard, old routes retained; challenge detection; no live services',flush=True)
 
 
+
+METAL_REFERENCES_OLD = "def references(trade):\n    docs={}\n    groups=[(trade,TRADE_FIELDS)]+[(lot,LOT_FIELDS) for lot in trade.get('lots',[])]\n    for parent,fields in groups:\n      for field in fields:\n          rows=parent.get(field)\n          if not isinstance(rows,list):raise ValueError('metal_it_document_list_missing')\n          for d in rows:\n              name=filename(d.get('name'));url=urljoin('https://etp.metal-it.ru',d.get('href') or '')\n              if not safe_url(url):raise ValueError('metal_it_invalid_document_url')\n              if Path(name).suffix.lower() not in EXTENSIONS|{'.zip','.rar','.7z'}:\n                  raise ValueError('metal_it_unsupported_document_format')\n              uid=str(d.get('id') or '')\n              if not uid.isdigit():raise ValueError('metal_it_invalid_document_id')\n              doc=SourceDocument(external_id=uid,name=name,url=url)\n              if uid in docs and docs[uid]!=doc:raise ValueError('metal_it_duplicate_document_id')\n              docs[uid]=doc\n    if not docs:raise ValueError('metal_it_no_public_documents')\n    if len(docs)>8:raise ValueError('metal_it_document_limit')\n    return list(docs.values())"
+METAL_REFERENCES_NEW = "def references(trade):\n    docs={}\n    groups=[(trade,TRADE_FIELDS)]+[(lot,LOT_FIELDS) for lot in trade.get('lots',[])]\n    for parent,fields in groups:\n      for field in fields:\n          rows=parent.get(field)\n          if not isinstance(rows,list):raise ValueError('metal_it_document_list_missing')\n          for d in rows:\n              name=filename(d.get('name'));url=urljoin('https://etp.metal-it.ru',d.get('href') or '')\n              if not safe_url(url):raise ValueError('metal_it_invalid_document_url')\n              if Path(name).suffix.lower() not in EXTENSIONS|{'.zip','.rar','.7z'}:\n                  raise ValueError('metal_it_unsupported_document_format')\n              uid=str(d.get('id') or '')\n              if not uid.isdigit():raise ValueError('metal_it_invalid_document_id')\n              doc=SourceDocument(external_id=uid,name=name,url=url)\n              if uid in docs and docs[uid]!=doc:raise ValueError('metal_it_duplicate_document_id')\n              docs[uid]=doc\n    if not docs:raise ValueError('metal_it_no_public_documents')\n    if len(docs)>MAX_FILES:raise ValueError('metal_it_document_limit')\n    return list(docs.values())"
+METAL_LIMIT_TESTS = "import unittest,tempfile\nfrom pathlib import Path\nfrom unittest.mock import patch\nmodule=globals().get('METAL_UNDER_TEST')\nif module is None:\n    from app.sources.metal_it import documents as module\nclass MetalDocumentLimitTests(unittest.TestCase):\n    def trade(self,n):\n        row={k:[] for k in module.TRADE_FIELDS};row['lots']=[]\n        row[module.TRADE_FIELDS[0]]=[{'id':i,'name':str(i)+'.txt','href':'/files/get/'+str(i)} for i in range(1,n+1)]\n        return row\n    def test_nine_and_twenty_retained(self):\n        for n in (8,9,20):self.assertEqual(len(module.references(self.trade(n))),n)\n    def test_twenty_one_rejected_not_truncated(self):\n        with self.assertRaisesRegex(ValueError,'metal_it_document_limit'):module.references(self.trade(21))\n    def test_duplicate_not_counted_twice(self):\n        t=self.trade(20);t[module.TRADE_FIELDS[1]]=list(t[module.TRADE_FIELDS[0]])\n        self.assertEqual(len(module.references(t)),20)\n    def test_conflicting_identity(self):\n        t=self.trade(2);t[module.TRADE_FIELDS[1]]=[dict(t[module.TRADE_FIELDS[0]][0],name='other.txt')]\n        with self.assertRaisesRegex(ValueError,'duplicate_document_id'):module.references(t)\n    def test_missing_document_list(self):\n        t=self.trade(1);del t[module.TRADE_FIELDS[-1]]\n        with self.assertRaisesRegex(ValueError,'document_list_missing'):module.references(t)\n    def test_external_file_rejected(self):\n        t=self.trade(1);t[module.TRADE_FIELDS[0]][0]['href']='https://example.invalid/files/get/1'\n        with self.assertRaisesRegex(ValueError,'invalid_document_url'):module.references(t)\n    def test_original_limits_retained(self):\n        self.assertEqual((module.MAX_FILES,module.MAX_BYTES,module.MAX_TOTAL),(20,20*1024*1024,80*1024*1024))\n    def test_unpacked_count_limit_retained(self):\n        doc=module.references(self.trade(1))[0]\n        with tempfile.TemporaryDirectory() as folder,patch.object(module,'validate_bytes',return_value=None):\n            with self.assertRaisesRegex(ValueError,'bundle_file_limit'):module.unpack(b'abc',doc,Path(folder),20,0)\n            self.assertEqual(list(Path(folder).iterdir()),[])\n    def test_total_size_limit_retained(self):\n        doc=module.references(self.trade(1))[0]\n        with tempfile.TemporaryDirectory() as folder,patch.object(module,'validate_bytes',return_value=None):\n            with self.assertRaisesRegex(ValueError,'bundle_over_80MB'):module.unpack(b'abc',doc,Path(folder),0,module.MAX_TOTAL-1)\n            self.assertEqual(list(Path(folder).iterdir()),[])\nresult=unittest.TextTestRunner(verbosity=1).run(unittest.defaultTestLoader.loadTestsFromTestCase(MetalDocumentLimitTests))\nif not result.wasSuccessful():raise SystemExit('METAL_DOCUMENT_LIMIT_TESTS_FAILED')\nprint('METAL_DOCUMENT_LIMIT_TESTS_OK: 9/20 accepted, 21 rejected, no truncation, identities/URLs and bundle limits retained; no network/LLM',flush=True)\n"
+PENDING_DETAILS = 'import json,re\nfrom collections import Counter,defaultdict\nfrom datetime import datetime,timezone\nfrom sqlalchemy import select,func,text\nfrom app.db.session import SyncSessionLocal\nfrom app.models.database import Tender,Document,ProcessingStatus\nfrom app.reports.review_dismissals import is_dismissed\nfrom app.sources.purchase_subject import subject_reason,SOURCES\n\nnow=datetime.now(timezone.utc)\ndef val(x):return getattr(x,\'value\',x)\ndef utc(x):\n    if x is None:return None\n    return x.replace(tzinfo=timezone.utc) if x.tzinfo is None else x.astimezone(timezone.utc)\ndef safe(x):\n    s=re.sub(r\'https?://[^\\s"<>]+\',\'[URL]\',str(x or \'\'))\n    return re.sub(r\'(?i)(token|password|cookie|authorization)\\s*[:=]\\s*\\S+\',r\'\\1=[hidden]\',s)[:400]\ndef show(x):print(json.dumps(x,ensure_ascii=False,default=str),flush=True)\n\ndef pending_hint(dismissed,active,deadline_group,subject,evidence):\n    if dismissed:hint=\'preserve_manual_exclusion\'\n    elif not active or deadline_group==\'expired\':hint=\'inactive_or_expired_no_automatic_recovery\'\n    elif subject:hint=\'non_target_subject_no_automatic_recovery\'\n    elif deadline_group==\'unknown\':hint=\'verify_deadline_before_recovery\'\n    elif not evidence:hint=\'documents_missing\'\n    elif any(d[\'ocr_status\'] not in (\'done\',\'not_required\') or not d[\'text_characters\'] for d in evidence):hint=\'document_quality_requires_review\'\n    else:hint=\'check_failure_and_task_history_before_recovery\'\n    return hint\n\nstates=[x for x in ProcessingStatus if val(x) in (\'documents_pending\',\'documents_ready\',\'analyzing\')]\nif not states:raise SystemExit(\'PENDING_STATUS_MAPPING_MISSING\')\nprint(\'PENDING_DETAILS_BEGIN: read-only database transaction; no marketplace HTTP, queues, OCR or LLM\',flush=True)\nwith SyncSessionLocal() as db:\n    db.execute(text(\'SET TRANSACTION READ ONLY\'))\n    db.execute(text("SET LOCAL statement_timeout = \'15000\'"))\n    condition=Tender.processing_status.in_(states)\n    total=db.execute(select(func.count()).select_from(Tender).where(condition)).scalar_one()\n    rows=db.execute(select(Tender).where(condition).order_by(Tender.updated_at,Tender.id).limit(500)).scalars().all()\n    docs=defaultdict(list)\n    if rows:\n        for uid,name,status,size,stored in db.execute(select(Document.tender_id,Document.filename,Document.ocr_status,\n                 func.length(Document.extracted_text),Document.storage_uri.isnot(None)).where(Document.tender_id.in_([r.id for r in rows]))):\n            docs[str(uid)].append({\'name\':safe(name),\'ocr_status\':val(status),\'text_characters\':size or 0,\'storage_uri_present\':stored})\n    groups=Counter();attention=[]\n    for t in rows:\n        end=utc(t.submission_deadline)\n        deadline_group=\'unknown\' if end is None else (\'future\' if end>now else \'expired\')\n        dismissed=is_dismissed(t.source,str(t.external_id))\n        subject=subject_reason(t.title or \'\') if t.source in SOURCES else None\n        evidence=docs[str(t.id)]\n        quality=Counter(d[\'ocr_status\'] for d in evidence)\n        hint=pending_hint(dismissed,t.is_active,deadline_group,subject,evidence)\n        groups[(t.source,val(t.processing_status),deadline_group,dismissed,hint)]+=1\n        if hint not in (\'preserve_manual_exclusion\',\'inactive_or_expired_no_automatic_recovery\',\'non_target_subject_no_automatic_recovery\'):\n            raw=t.raw_payload if isinstance(t.raw_payload,dict) else {}\n            failure=raw.get(\'analysis_failure\') if isinstance(raw.get(\'analysis_failure\'),dict) else {}\n            attention.append({\'source\':t.source,\'external_id\':t.external_id,\'tender_id\':str(t.id),\'title\':safe(t.title),\n                \'processing\':val(t.processing_status),\'analysis_done\':t.analysis_done,\'active\':t.is_active,\n                \'deadline\':end,\'updated_at\':utc(t.updated_at),\'hint\':hint,\'documents\':len(evidence),\n                \'document_status_counts\':dict(quality),\'failure_code\':safe(failure.get(\'code\')),\n                \'retryable\':failure.get(\'retryable\') if type(failure.get(\'retryable\')) is bool else None})\n    show({\'checked_at\':now,\'total\':total,\'checked\':len(rows),\'complete\':total<=len(rows),\'attention_count\':len(attention),\n          \'summary\':[dict(source=k[0],processing=k[1],deadline_group=k[2],dismissed=k[3],hint=k[4],count=n) for k,n in groups.items()]})\n    for item in attention[:30]:show(item)\n    show({\'attention_preview_truncated\':len(attention)>30,\'note\':\'No statuses changed. Empty queues must be checked separately; these records are not task messages.\'})\nprint(\'READ_ONLY_PENDING_FINISHED: no files/DB writes, tasks, OCR, LLM or notifications\',flush=True)\n'
+METAL_LIMIT_VERIFY = 'import ast,inspect\nfrom app.sources.metal_it import documents as d\nassert d.MAX_FILES==20 and d.MAX_BYTES==20*1024*1024 and d.MAX_TOTAL==80*1024*1024\nexpected=ast.parse("def references(trade):\\n    docs={}\\n    groups=[(trade,TRADE_FIELDS)]+[(lot,LOT_FIELDS) for lot in trade.get(\'lots\',[])]\\n    for parent,fields in groups:\\n      for field in fields:\\n          rows=parent.get(field)\\n          if not isinstance(rows,list):raise ValueError(\'metal_it_document_list_missing\')\\n          for d in rows:\\n              name=filename(d.get(\'name\'));url=urljoin(\'https://etp.metal-it.ru\',d.get(\'href\') or \'\')\\n              if not safe_url(url):raise ValueError(\'metal_it_invalid_document_url\')\\n              if Path(name).suffix.lower() not in EXTENSIONS|{\'.zip\',\'.rar\',\'.7z\'}:\\n                  raise ValueError(\'metal_it_unsupported_document_format\')\\n              uid=str(d.get(\'id\') or \'\')\\n              if not uid.isdigit():raise ValueError(\'metal_it_invalid_document_id\')\\n              doc=SourceDocument(external_id=uid,name=name,url=url)\\n              if uid in docs and docs[uid]!=doc:raise ValueError(\'metal_it_duplicate_document_id\')\\n              docs[uid]=doc\\n    if not docs:raise ValueError(\'metal_it_no_public_documents\')\\n    if len(docs)>MAX_FILES:raise ValueError(\'metal_it_document_limit\')\\n    return list(docs.values())").body[0]\nactual=ast.parse(inspect.getsource(d.references)).body[0]\nassert ast.dump(actual,include_attributes=False)==ast.dump(expected,include_attributes=False), \'METAL_REFERENCE_RUNTIME_MISMATCH\'\nprint(\'METAL_DOCUMENT_LIMIT_RUNTIME_OK: up to 20 public attachments; bundle limits retained; no collection, downloads or tasks\',flush=True)\n'
+
+def metal_document_changes(root):
+    rel='app/sources/metal_it/documents.py';p=root/rel
+    if p.is_symlink():raise SystemExit('METAL_DOCUMENT_SYMLINK: no files changed')
+    original=p.read_bytes();source=original.decode('utf-8');tree=ast.parse(source)
+    constants={n.targets[0].id:ast.dump(n.value) for n in tree.body if isinstance(n,ast.Assign) and len(n.targets)==1 and isinstance(n.targets[0],ast.Name)}
+    for key,value in (('MAX_FILES','20'),('MAX_BYTES','20*1024*1024'),('MAX_TOTAL','80*1024*1024')):
+        if constants.get(key)!=ast.dump(ast.parse(value,mode='eval').body):
+            raise SystemExit('METAL_BUNDLE_LIMITS_DIFFER: '+key+'; no files changed')
+    nodes=[n for n in tree.body if isinstance(n,ast.FunctionDef) and n.name=='references']
+    if len(nodes)!=1:raise SystemExit('METAL_REFERENCES_MISSING: no files changed')
+    n=nodes[0];actual=ast.dump(n,include_attributes=False)
+    old=ast.dump(ast.parse(METAL_REFERENCES_OLD).body[0],include_attributes=False)
+    new=ast.dump(ast.parse(METAL_REFERENCES_NEW).body[0],include_attributes=False)
+    if actual==new:return []
+    if actual!=old:raise SystemExit('METAL_REFERENCES_CHANGED: no files changed; source contract requires review')
+    lines=source.splitlines(keepends=True)
+    lines[n.lineno-1:n.end_lineno]=[METAL_REFERENCES_NEW+'\n']
+    result=''.join(lines);compile(result,rel,'exec')
+    return [(rel,result,original)]
+
+def audit_pending_details():
+    services=run(['docker','compose','ps','--services','--status','running'],capture_output=True,text=True,timeout=20).stdout.split()
+    if 'app' not in services:raise SystemExit('APP_NOT_RUNNING: no services started')
+    run(['docker','compose','exec','-T','app','python','-'],input=PENDING_DETAILS,text=True,timeout=90)
+
+def self_test_continuation():
+    import tempfile,types
+    from dataclasses import make_dataclass
+    from urllib.parse import urljoin,urlsplit
+    with tempfile.TemporaryDirectory() as directory:
+        root=Path(directory);p=root/'app/sources/metal_it/documents.py';p.parent.mkdir(parents=True)
+        header='MAX_FILES=20\nMAX_BYTES=20*1024*1024\nMAX_TOTAL=80*1024*1024\n'
+        p.write_text(header+METAL_REFERENCES_OLD+'\n# preserve unrelated code\n')
+        pending=metal_document_changes(root);assert len(pending)==1
+        p.write_text(pending[0][1]);assert metal_document_changes(root)==[]
+        assert p.read_text().endswith('# preserve unrelated code\n')
+        p.write_text(header+METAL_REFERENCES_OLD.replace('len(docs)>8','len(docs)>99'))
+        try:metal_document_changes(root)
+        except SystemExit:pass
+        else:raise AssertionError('Unknown reference implementation accepted')
+    # Test the exact replacement with lightweight data objects, no application services.
+    module=types.ModuleType('metal_reference_offline')
+    module.SourceDocument=make_dataclass('SourceDocument',[('external_id',str),('name',str),('url',str)])
+    module.TRADE_FIELDS=('attachments',);module.LOT_FIELDS=('attachments',)
+    module.EXTENSIONS={'.txt'};module.MAX_FILES=20;module.Path=Path;module.urljoin=urljoin
+    module.filename=lambda name: str(name)
+    module.safe_url=lambda url: urlsplit(url).scheme=='https' and urlsplit(url).hostname=='etp.metal-it.ru'
+    exec(METAL_REFERENCES_NEW,module.__dict__)
+    def trade(n):return {'lots':[],'attachments':[{'id':i,'name':str(i)+'.txt','href':'/files/get/'+str(i)} for i in range(1,n+1)]}
+    for n in (8,9,20):assert len(module.references(trade(n)))==n
+    try:module.references(trade(21))
+    except ValueError as e:assert str(e)=='metal_it_document_limit'
+    else:raise AssertionError('Twenty-one attachments accepted')
+    assert not any(isinstance(n,ast.Call) and isinstance(n.func,ast.Attribute) and n.func.attr in {'commit','delay','apply_async','send_task','purge','revoke'} for n in ast.walk(ast.parse(PENDING_DETAILS)))
+    assert 'SET TRANSACTION READ ONLY' in PENDING_DETAILS
+    print('CONTINUATION_SELF_TEST_OK: targeted/idempotent patch, 8/9/20/21 boundary, unknown-source guard, read-only audit; no Docker/network/LLM',flush=True)
+
 def main():
  parser=argparse.ArgumentParser(description='Install verified public developer adapters and repair discovery reporting. Existing OCR/LLM, no duplicate models.')
  parser.add_argument('--check-only',action='store_true',help='check source versions without Docker or writes')
@@ -676,11 +749,16 @@ def main():
  parser.add_argument('--install-brusnika-monitor',action='store_true',help='install public Brusnika listing monitor only; no automatic OCR/LLM')
  parser.add_argument('--check-remaining-platforms',action='store_true',help='read public Brusnika search, Tatneft and Sminex entry; no install or business tasks')
  parser.add_argument('--self-test-remaining',action='store_true',help='offline tests for new monitor and targeted installer')
+ parser.add_argument('--repair-metal-document-limit',action='store_true',help='align public attachment count with existing 20-file bundle limit; tested image and warm restart only')
+ parser.add_argument('--audit-pending-details',action='store_true',help='read deadlines, manual exclusions and document quality for unfinished records; no recovery/tasks')
+ parser.add_argument('--self-test-continuation',action='store_true',help='offline tests of targeted attachment patch and audit guards')
  args=parser.parse_args();root=Path.cwd()
- inspections=(args.self_test_remaining,args.check_remaining_platforms,args.check_corporate_platforms,args.check_federal_platforms,args.check_developer_platforms,args.show_search_filters,args.audit_queues,args.check_next_platforms,args.self_test_preflight,args.check_sber_card,args.guide,args.status,args.check_only,args.diagnose_only,args.probe_tender_pro,args.audit_backlog,args.compare_tender_pro_network,args.check_tender_pro_public,args.check_new_platforms)
- actions=(args.install_brusnika_monitor,args.install_corporate_monitors,args.install_lukoil_monitor,args.install_document_formats,args.install_public_developers,args.repair_review_buttons,args.repair_lamoda_queue,args.run_roseltorg,args.run_gpb,args.recover_gpb_large,args.check_access,args.run_priority)
+ inspections=(args.audit_pending_details,args.self_test_continuation,args.self_test_remaining,args.check_remaining_platforms,args.check_corporate_platforms,args.check_federal_platforms,args.check_developer_platforms,args.show_search_filters,args.audit_queues,args.check_next_platforms,args.self_test_preflight,args.check_sber_card,args.guide,args.status,args.check_only,args.diagnose_only,args.probe_tender_pro,args.audit_backlog,args.compare_tender_pro_network,args.check_tender_pro_public,args.check_new_platforms)
+ actions=(args.repair_metal_document_limit,args.install_brusnika_monitor,args.install_corporate_monitors,args.install_lukoil_monitor,args.install_document_formats,args.install_public_developers,args.repair_review_buttons,args.repair_lamoda_queue,args.run_roseltorg,args.run_gpb,args.recover_gpb_large,args.check_access,args.run_priority)
  if sum(map(bool,inspections))>1 or sum(map(bool,actions))>1 or (any(inspections) and any(actions)):
   parser.error('Choose one inspection mode, or installation with one optional action')
+ if args.self_test_continuation:
+  self_test_continuation();return
  if args.self_test_remaining:
   self_test_remaining();return
  if args.guide:
@@ -690,6 +768,10 @@ def main():
  if args.show_search_filters:
   show_search_filters();return
  if not (root/'app/workers/celery_app.py').is_file():raise SystemExit('Run from ~/LLM-assistant/tender-ai-platform-v6.2')
+ if args.audit_pending_details:
+  audit_pending_details();return
+ if args.repair_metal_document_limit:
+  install_lukoil_monitor(root,include_metal=True);return
  if args.install_brusnika_monitor:
   install_lukoil_monitor(root,include_brusnika=True);return
  if args.check_remaining_platforms:
